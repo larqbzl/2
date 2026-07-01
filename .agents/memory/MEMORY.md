@@ -1,0 +1,1 @@
+- [Browser connection-pool starvation on batch downloads](batch-download-connection-pool.md) — sequential fetch loops without AbortController cause "hangs forever" when component unmounts mid-loop.

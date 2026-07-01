@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Media Finder"
+version = "1.0.0"
+id = "artifacts/media-finder"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23221
+
+[services.development]
+run = "pnpm --filter @workspace/media-finder run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/media-finder", "run", "build" ]
+publicDir = "artifacts/media-finder/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23221"
+BASE_PATH = "/"

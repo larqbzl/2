@@ -1,0 +1,301 @@
+MAJOR REWORK — Read everything carefully and implement all of it.
+
+═══════════════════════════════════════════════════
+PART 1 — SEARCH LOGIC COMPLETE REWORK
+═══════════════════════════════════════════════════
+
+The app must find the 2-3 BEST results per source for each prompt.
+Not random results — the BEST ones based on relevance and quality.
+
+QUALITY REQUIREMENTS — STRICT:
+- Videos: minimum 1920x1080 (1080p). If source has no 1080p — skip it.
+- Photos: minimum 2000px on shortest side.
+- Archive.org: pick the highest quality file available.
+  Check file list at https://archive.org/metadata/IDENTIFIER
+  and select the largest .mp4 or highest resolution file.
+- Never show results below these thresholds.
+- Show resolution badge on every single result card.
+
+SOURCES AND HOW TO SEARCH EACH ONE:
+
+── SOURCE 1: Archive.org ──
+This is the most important source. Real car commercials,
+TV reviews, test drives from 2000-2015.
+
+Search URL:
+https://archive.org/advancedsearch.php?q=QUERY+AND+mediatype:movies&fl[]=identifier,title,description,year,subject,downloads&sort[]=downloads+desc&rows=20&output=json
+
+After getting results, for each item fetch its metadata:
+https://archive.org/metadata/IDENTIFIER
+
+From metadata extract:
+- All available video files (.mp4, .avi, .mov)
+- Pick the one with highest resolution / largest file size
+- Show: title, year, file size, format, resolution if detectable
+- Show download count from metadata (popularity indicator)
+
+Each Archive.org card must have:
+- Large thumbnail: https://archive.org/services/img/IDENTIFIER
+- Title (full)
+- Year in large bold orange
+- File size and format
+- Button "▶ Preview" — plays video inline in HTML5 player
+- Button "⬇ Download Best Quality" — downloads the best file directly
+- Button "🔗 Open Page" — opens archive.org/details/IDENTIFIER
+
+Show maximum 3 best Archive.org results per search.
+Best = highest download count + most relevant to query year range.
+
+── SOURCE 2: Pexels ──
+Search videos first, then photos.
+Only return results 1920x1080 or higher for video.
+Only return results 2000px+ for photos.
+
+For video results show:
+- Thumbnail with play button overlay
+- Duration badge
+- Resolution badge (e.g. "4K" or "1080p")
+- Author name
+- Button "▶ Preview" — plays inline
+- Button "⬇ Download 1080p" — downloads 1080p version specifically
+
+For photo results show:
+- Full thumbnail
+- Resolution (width x height)
+- Author
+- Button "⬇ Download Full Size"
+
+Show maximum 3 best results from Pexels per search.
+
+── SOURCE 3: Pixabay ──
+Same rules as Pexels.
+Videos: 1920x1080 minimum.
+Photos: 2000px+ minimum.
+
+Show maximum 3 best results from Pixabay per search.
+
+── SOURCE 4: Wikimedia Commons ──
+Search for car photos, interior shots, manufacturer press photos.
+These are often real press photos of specific car models — very useful.
+
+API: https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=QUERY&srnamespace=6&srlimit=10&format=json&origin=*
+
+For each result fetch image info:
+https://commons.wikimedia.org/w/api.php?action=query&titles=PAGETITLE&prop=imageinfo&iiprop=url|size|mime&format=json&origin=*
+
+Only show images 2000px+ minimum dimension.
+Show: thumbnail, resolution, license type, author.
+Button "⬇ Download Full Size"
+
+Show maximum 3 best Wikimedia results per search.
+
+═══════════════════════════════════════════════════
+PART 2 — SEARCH TAB REWORK
+═══════════════════════════════════════════════════
+
+Layout of results:
+Show results grouped by source with clear section headers:
+
+📼 ARCHIVE.ORG — Real Commercials & Reviews
+[3 cards max]
+
+🎬 PEXELS — Stock Footage & Photos  
+[3 cards max]
+
+🖼 PIXABAY — Stock Footage & Photos
+[3 cards max]
+
+📷 WIKIMEDIA — Press Photos & Documentation
+[3 cards max]
+
+Total results counter at top: "Found 11 results across 4 sources"
+
+Add filter bar:
+[All] [Video only] [Photo only] [1080p+] [2000-2010] [2010-2015]
+
+If user types "photo" at end of prompt → search photos only across all sources
+If user types "video" at end of prompt → search videos only across all sources
+If neither → search both, videos shown first
+
+═══════════════════════════════════════════════════
+PART 3 — BATCH TAB COMPLETE REWORK
+═══════════════════════════════════════════════════
+
+This is the main production tool for the creator.
+He pastes 20-30 prompts from his visual script.
+The app processes everything automatically.
+
+Layout of Batch tab:
+
+[Large text area — paste prompts here, one per line]
+
+[Toggle: AUTO MODE ● ON] 
+
+[Button: ▶ START BATCH — big orange button full width]
+
+── AUTO MODE behavior ──
+
+When START BATCH is clicked:
+
+PHASE 1 — SEARCHING:
+Process prompts one by one sequentially.
+Wait 1500ms between prompts to avoid rate limits.
+Wait 500ms between source requests within one prompt.
+
+Show live progress:
+- Overall progress bar at top: "Processing prompt 6 of 20 — 30%"
+- Current prompt text shown: "Now searching: Toyota Camry 2005 commercial video"
+- Per-source status indicators:
+  Archive.org: ✅ Found 2 results
+  Pexels: ⏳ Searching...
+  Pixabay: ✅ Found 3 results  
+  Wikimedia: ❌ No results
+
+PHASE 2 — AUTO-SELECT BEST RESULT PER PROMPT:
+After searching, auto-select ONE best result per prompt.
+Priority order:
+1. Archive.org video with year closest to 2000-2015
+2. Pexels video 1080p or higher
+3. Pixabay video 1080p or higher
+4. Wikimedia photo 2000px+
+5. Pexels photo 2000px+
+6. Pixabay photo 2000px+
+
+PHASE 3 — AUTO-DOWNLOAD:
+For Pexels: trigger direct browser download
+For Pixabay: trigger direct browser download  
+For Wikimedia: trigger direct browser download
+For Archive.org: open item page in new tab + show notification
+"Archive.org file opened in new tab — click the download button there"
+
+PHASE 4 — RESULTS DISPLAY:
+Show each prompt as a row:
+
+✅ Toyota Camry 2005 commercial video
+   → Downloaded: [Archive.org] TV Commercials 2003 — 2.3GB .mp4
+   [▼ Show all 8 results found] — expandable
+
+✅ 2008 Honda Civic interior dashboard photo  
+   → Downloaded: [Pexels] Photo 4K 3706×5559
+   [▼ Show all 6 results found]
+
+❌ Subaru Legacy 2006 AWD commercial video
+   → Nothing found — try: "Subaru Legacy commercial" or "Subaru AWD 2006"
+   [▼ Show 2 partial results]
+
+PHASE 5 — FINAL SUMMARY:
+Big card at bottom after all prompts processed:
+
+━━━━━━━━━━━━━━━━━━━━━━
+BATCH COMPLETE — 2m 34s
+━━━━━━━━━━━━━━━━━━━━━━
+✅ Auto-downloaded: 14 files
+📂 Opened on Archive.org: 4 tabs  
+❌ Not found: 2 prompts
+
+Failed prompts — suggested fixes:
+→ "Subaru Legacy 2006 AWD commercial video"
+   Try: "Subaru Legacy commercial" or "Subaru AWD 2006"
+→ "Ford F-150 2007 engine bay closeup photo"  
+   Try: "Ford F150 engine" or "truck engine bay 2007"
+
+[Button: Export full report as .txt]
+[Button: Retry failed prompts]
+
+── MANUAL MODE behavior ──
+Toggle AUTO MODE off.
+Show all results for all prompts in expandable sections.
+Checkbox on every result card.
+Button at bottom: "⬇ Download all checked (N files)"
+Button: "Export links as .txt"
+
+═══════════════════════════════════════════════════
+PART 4 — PROJECTS TAB
+═══════════════════════════════════════════════════
+
+Creator works on multiple YouTube videos simultaneously.
+Each YouTube video = one project in the app.
+
+Project card shows:
+- Project name (e.g. "Video 12 — Honda Civic Features")
+- Date created
+- Number of prompts
+- Progress: "18/24 prompts completed"
+- Last modified date
+
+Inside each project:
+- Notes field (plain text, for reminders and ideas)
+- Full list of prompts with their status and found results
+- All downloaded file links saved
+- Button "Export project report as .txt"
+- Button "Run Batch Search for this project"
+
+Projects saved to localStorage.
+Max 20 projects stored.
+Export any project as .json backup.
+
+═══════════════════════════════════════════════════
+PART 5 — SETTINGS PAGE
+═══════════════════════════════════════════════════
+
+Clean settings page (gear icon top right):
+
+API Keys section:
+- Pexels API key field with show/hide toggle
+  Link: "Get free key → pexels.com/api"
+- Pixabay API key field with show/hide toggle
+  Link: "Get free key → pixabay.com/api"
+- [Test Keys] button — makes a test search and confirms keys work
+  Shows: "✅ Pexels key valid" or "❌ Pexels key invalid"
+
+Search Preferences:
+- Default quality: [1080p minimum ●] / [Any quality]
+- Preferred source order: drag to reorder priority
+- Results per source: slider 1-5 (default 3)
+- Auto-mode default: ON/OFF toggle
+
+Download Preferences:
+- Default download folder note: 
+  "Files download to your browser's default Downloads folder"
+
+All settings saved to localStorage.
+
+═══════════════════════════════════════════════════
+PART 6 — DESIGN
+═══════════════════════════════════════════════════
+
+Dark theme throughout.
+Background: #0a0a0a
+Cards: #141414
+Hover state on cards: #1e1e1e
+Accent: #e85d04 (orange)
+Success: #22c55e (green)
+Error: #ef4444 (red)
+Warning: #f59e0b (yellow)
+
+Font: Inter
+All cards have subtle border: 1px solid #2a2a2a
+
+Source badges:
+Archive.org — purple background
+Pexels — green background  
+Pixabay — blue background
+Wikimedia — gray background
+
+Resolution badges on every card — always visible.
+
+Smooth fade-in animation when results appear.
+Loading skeleton cards while searching.
+Mobile responsive.
+
+═══════════════════════════════════════════════════
+TECHNICAL REQUIREMENTS
+═══════════════════════════════════════════════════
+
+React with hooks.
+No backend — everything client-side.
+API keys in localStorage only.
+All fetch requests with proper error handling.
+If one source fails — continue with others, never break.
+Console.log all API responses for debugging.
+Clean filenames on download: "toyota-camry-2005-commercial_archive.mp4"

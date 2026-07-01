@@ -1,0 +1,139 @@
+MAJOR FIX — Read everything and implement all of it.
+
+═══════════════════════════════════════════════════
+PROBLEM 1 — ARCHIVE.ORG RETURNS WRONG RESULTS
+═══════════════════════════════════════════════════
+
+Currently Archive.org returns huge multi-hour TV broadcast 
+archives (4GB+). This is useless. The creator needs SHORT 
+car commercials and reviews, 30 seconds to 5 minutes long.
+
+Fix the Archive.org search completely:
+
+Use these TWO separate searches and merge results:
+
+SEARCH A — Short car commercials:
+https://archive.org/advancedsearch.php?q=QUERY+AND+mediatype:movies+AND+subject:(commercial+OR+advertisement+OR+ad)&fl[]=identifier,title,description,year,subject,downloads,avg_rating&sort[]=downloads+desc&rows=10&output=json
+
+SEARCH B — Car reviews and test drives:
+https://archive.org/advancedsearch.php?q=QUERY+AND+mediatype:movies+AND+subject:(review+OR+test+drive+OR+automotive)&fl[]=identifier,title,description,year,subject,downloads&sort[]=downloads+desc&rows=10&output=json
+
+After getting results from both searches:
+1. Fetch metadata for each: https://archive.org/metadata/IDENTIFIER
+2. From metadata files array, find ALL video files (.mp4, .avi, .mov, .mpg)
+3. Filter out files larger than 800MB — skip them entirely
+4. Pick the best quality file under 800MB
+5. Show file size on every card — if over 200MB show warning badge "Large file"
+6. Sort final results by: shortest duration + most downloads + year closest to 2000-2015
+7. Show maximum 3 best results
+
+Each Archive.org result card must show:
+- Video thumbnail: https://archive.org/services/img/IDENTIFIER
+- Full title
+- Year in large bold orange text
+- File size (e.g. "124MB") 
+- Format badge (.mp4 / .avi)
+- Download count
+- Duration if available in metadata
+- Button "▶ Preview" — loads and plays video inline in HTML5 player
+- Button "⬇ Download" — direct download of best file
+- Button "🔗 Open Page" — opens https://archive.org/details/IDENTIFIER
+
+If Archive.org returns 0 results — show message:
+"No Archive.org results for this query. 
+Try shorter keywords, example: 'Toyota Camry commercial' instead of 
+'Toyota Camry 2005 TV commercial USA video'"
+
+═══════════════════════════════════════════════════
+PROBLEM 2 — PEXELS AND PIXABAY RETURN 0 RESULTS
+═══════════════════════════════════════════════════
+
+Currently Pexels and Pixabay show nothing. Fix this completely.
+
+For Pexels video search:
+URL: https://api.pexels.com/videos/search?query=QUERY&per_page=15&min_width=1920&min_height=1080
+Header: Authorization: PEXELS_API_KEY
+
+If min_width filter returns 0 results — retry WITHOUT the min_width filter:
+URL: https://api.pexels.com/videos/search?query=QUERY&per_page=15
+Then filter client-side: only keep videos where width >= 1920
+
+For Pexels photo search:
+URL: https://api.pexels.com/v1/search?query=QUERY&per_page=15
+Header: Authorization: PEXELS_API_KEY
+Filter client-side: only keep photos where width >= 2000 OR height >= 2000
+
+For Pixabay video search:
+URL: https://pixabay.com/api/videos/?key=PIXABAY_KEY&q=QUERY&per_page=15&min_width=1920
+If returns 0 — retry without min_width, filter client-side
+
+For Pixabay photo search:
+URL: https://pixabay.com/api/?key=PIXABAY_KEY&q=QUERY&per_page=15&min_width=2000
+If returns 0 — retry without min_width, filter client-side
+
+IMPORTANT — strip media type keywords before searching Pexels/Pixabay:
+If prompt ends with "video" or "photo" — remove that word before sending 
+to Pexels/Pixabay. Example: "Toyota Camry 2005 commercial video" → 
+search Pexels for "Toyota Camry 2005 commercial"
+
+Console.log every single API request URL and response status.
+If API key is missing — show visible error on screen, not just console.
+
+═══════════════════════════════════════════════════
+PROBLEM 3 — WIKIMEDIA RETURNS 0 RESULTS  
+═══════════════════════════════════════════════════
+
+Fix Wikimedia Commons search:
+
+Step 1 — Search for files:
+https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=QUERY&srnamespace=6&srlimit=15&format=json&origin=*
+
+Step 2 — For each result get image info:
+https://commons.wikimedia.org/w/api.php?action=query&titles=FILE_TITLE&prop=imageinfo&iiprop=url|size|mime|extmetadata&format=json&origin=*
+
+Step 3 — Filter: only keep images where width >= 1920 OR size >= 1500000 bytes
+
+Step 4 — Show on card:
+- Thumbnail (use imageinfo url but add ?width=400 for thumbnail)
+- Full resolution dimensions
+- License from extmetadata (e.g. "CC BY-SA 4.0")
+- Author from extmetadata
+- Button "⬇ Download Full Size" — direct link to full resolution file
+
+Show maximum 3 Wikimedia results.
+
+═══════════════════════════════════════════════════
+PROBLEM 4 — GENERAL FIXES
+═══════════════════════════════════════════════════
+
+1. ALL 4 SOURCES must search simultaneously using Promise.allSettled()
+   Never wait for one source before starting another.
+   If one source fails — show its error, continue showing other results.
+
+2. Show per-source loading status while searching:
+   📼 Archive.org ⏳ Searching...
+   🎬 Pexels ⏳ Searching...  
+   🖼 Pixabay ✅ Found 3 results
+   📷 Wikimedia ❌ Error: timeout
+
+3. Show total count: "Found 9 results across 3 sources"
+
+4. If API keys are not set — show banner at top:
+   "⚠️ Pexels key missing — add in Settings for more results"
+   "⚠️ Pixabay key missing — add in Settings for more results"
+   With direct link to Settings page.
+
+5. Add "No results" state per source with helpful message:
+   "No Pexels results — try simpler keywords"
+
+6. Smart keyword cleaning before search:
+   Remove these words before sending query to any source:
+   "photo", "video", "footage", "real", "original", "USA", "TV", "commercial" 
+   Keep: car brand, model, year, descriptive words like "interior", "dashboard"
+   Example input: "2008 Honda Civic interior dashboard real photo"
+   Cleaned for search: "Honda Civic 2008 interior dashboard"
+
+7. Add retry button on each source section if it returns error.
+
+8. Console.log everything — every URL called, every response, every error.
+   This helps debug issues quickly.
